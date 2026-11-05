@@ -1,0 +1,5 @@
+                                 QUERY PLAN
+-----------------------------------------------------------------------------
+ Index Scan using ix_links_code on links  (cost=0.14..8.16 rows=1 width=864)
+   Index Cond: ((code)::text = 'demo123'::text)
+(2 rows)

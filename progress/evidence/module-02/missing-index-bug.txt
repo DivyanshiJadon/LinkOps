@@ -1,0 +1,18 @@
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.schemas
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.tables
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.types
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.constraints
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.defaults
+INFO  [alembic.runtime.plugins] setting up autogenerate plugin alembic.autogenerate.comments
+INFO  [alembic.ddl.postgresql] Detected sequence named 'links_id_seq' as owned by integer column 'links(id)', assuming SERIAL and omitting
+INFO  [alembic.ddl.postgresql] Detected sequence named 'click_events_id_seq' as owned by integer column 'click_events(id)', assuming SERIAL and omitting
+INFO  [alembic.autogenerate.compare.constraints] Detected removed index 'ix_links_code' on 'links'
+INFO  [alembic.autogenerate.compare.constraints] Detected added unique constraint None on '('code',)'
+ERROR [alembic.util.messaging] New upgrade operations detected: [('remove_index', Index('ix_links_code', Column('code', VARCHAR(length=50), table=<links>, nullable=False), unique=True)), ('add_constraint', UniqueConstraint(Column('code', NullType(), table=<links>)))]
+  FAILED: New upgrade operations detected: [('remove_index',
+  Index('ix_links_code', Column('code', VARCHAR(length=50),
+  table=<links>, nullable=False), unique=True)),
+  ('add_constraint', UniqueConstraint(Column('code',
+  NullType(), table=<links>)))]
