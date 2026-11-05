@@ -9,6 +9,31 @@ from app.models import Link, ClickEvent
 client = TestClient(app)
 
 
+@pytest.fixture(autouse=True)
+def authenticated_client():
+    email = f"test-{uuid4().hex}@example.com"
+    password = "TestPassword123!"
+
+    register_response = client.post(
+        "/auth/register",
+        json={"email": email, "password": password}
+    )
+    assert register_response.status_code == 201, register_response.text
+
+    login_response = client.post(
+        "/auth/login",
+        json={"email": email, "password": password}
+    )
+    assert login_response.status_code == 200, login_response.text
+
+    token = login_response.json()["access_token"]
+    client.headers.update({"Authorization": f"Bearer {token}"})
+
+    yield
+
+    client.headers.pop("Authorization", None)
+
+
 @pytest.fixture
 def existing_link():
     code = "test-" + uuid4().hex[:12]
@@ -218,3 +243,67 @@ def test_analytics_increases_after_redirect(existing_link):
 def test_analytics_nonexistent_link():
     response = client.get("/links/999999/analytics")
     assert response.status_code == 404
+
+
+def test_unauthenticated_access():
+    client.headers.pop("Authorization", None)
+
+    response = client.get("/links")
+
+    assert response.status_code == 401
+
+
+def test_user_cannot_access_another_users_link(existing_link):
+    link_id, code = existing_link
+
+    email = f"second-{uuid4().hex}@example.com"
+    password = "TestPassword123!"
+
+    register_response = client.post(
+        "/auth/register",
+        json={"email": email, "password": password}
+    )
+    assert register_response.status_code == 201
+
+    login_response = client.post(
+        "/auth/login",
+        json={"email": email, "password": password}
+    )
+    assert login_response.status_code == 200
+
+    second_token = login_response.json()["access_token"]
+    client.headers.update({
+        "Authorization": f"Bearer {second_token}"
+    })
+
+    assert client.get(f"/links/{link_id}").status_code == 404
+
+    assert client.put(
+        f"/links/{link_id}",
+        json={
+            "long_url": "https://example.com/hacked",
+            "tags": []
+        }
+    ).status_code == 404
+
+    assert client.delete(f"/links/{link_id}").status_code == 404
+
+    assert client.get(
+        f"/links/{link_id}/analytics"
+    ).status_code == 404
+
+
+def test_token_with_non_numeric_subject_returns_401():
+    import jwt
+    from app.config import settings
+
+    token = jwt.encode(
+        {"sub": "not-a-user-id"},
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    response = client.get("/links")
+
+    assert response.status_code == 401

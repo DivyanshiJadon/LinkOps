@@ -34,7 +34,10 @@ class Link(Base):
         nullable=False,
         default=list
     )
-    created_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_by: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False
+    )
 
     __table_args__ = (
         Index("ix_links_created_by", "created_by"),

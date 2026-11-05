@@ -7,10 +7,12 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from app.database import get_db
-from app.models import Link, ClickEvent
+from app.models import Link, ClickEvent, User
 from app.schemas import LinkCreate, LinkResponse
+from app.auth import router as auth_router, get_current_user
 
 app = FastAPI()
+app.include_router(auth_router)
 
 
 @app.get("/health")
@@ -21,7 +23,8 @@ def health_check():
 @app.post("/links", response_model=LinkResponse)
 def create_link(
     link_data: LinkCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
 
     code = link_data.custom_code or secrets.token_urlsafe(6)
@@ -38,7 +41,7 @@ def create_link(
         long_url=str(link_data.long_url),
         expires_at=link_data.expires_at,
         tags=link_data.tags,
-        created_by="local-demo"
+        created_by=current_user.id
     )
 
     db.add(new_link)
@@ -58,10 +61,12 @@ def create_link(
 def list_links(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=10, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     links = (
         db.query(Link)
+        .filter(Link.created_by == current_user.id)
         .order_by(Link.id)
         .offset(skip)
         .limit(limit)
@@ -83,9 +88,17 @@ def list_links(
 @app.get("/links/{link_id}", response_model=LinkResponse)
 def get_link(
     link_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    link = db.query(Link).filter(Link.id == link_id).first()
+    link = (
+        db.query(Link)
+        .filter(
+            Link.id == link_id,
+            Link.created_by == current_user.id
+        )
+        .first()
+    )
 
     if not link:
         raise HTTPException(
@@ -104,9 +117,17 @@ def get_link(
 def update_link(
     link_id: int,
     link_data: LinkCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    link = db.query(Link).filter(Link.id == link_id).first()
+    link = (
+        db.query(Link)
+        .filter(
+            Link.id == link_id,
+            Link.created_by == current_user.id
+        )
+        .first()
+    )
 
     if not link:
         raise HTTPException(
@@ -137,9 +158,17 @@ def update_link(
 @app.delete("/links/{link_id}")
 def delete_link(
     link_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    link = db.query(Link).filter(Link.id == link_id).first()
+    link = (
+        db.query(Link)
+        .filter(
+            Link.id == link_id,
+            Link.created_by == current_user.id
+        )
+        .first()
+    )
 
     if not link:
         raise HTTPException(
@@ -198,14 +227,14 @@ def redirect_link(
         expires_at = link.expires_at
 
         if not expires_at or expires_at > datetime.now(timezone.utc):
-            redis_client.setex(
+            redis_client.set(
                 cache_key,
-                300,
                 json.dumps({
                     "id": link_id,
                     "long_url": long_url,
                     "expires_at": expires_at.isoformat() if expires_at else None
-                })
+                }),
+                ex=300,
             )
 
     if expires_at and expires_at <= datetime.now(timezone.utc):
@@ -233,9 +262,17 @@ def redirect_link(
 @app.get("/links/{link_id}/analytics")
 def get_link_analytics(
     link_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    link = db.query(Link).filter(Link.id == link_id).first()
+    link = (
+        db.query(Link)
+        .filter(
+            Link.id == link_id,
+            Link.created_by == current_user.id
+        )
+        .first()
+    )
 
     if not link:
         raise HTTPException(

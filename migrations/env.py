@@ -22,7 +22,7 @@ if not database_url:
 config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 from app.database import Base
-from app.models import Link, ClickEvent
+from app.models import Link, ClickEvent, User
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
