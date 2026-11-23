@@ -13,8 +13,20 @@ depends_on = None
 def upgrade() -> None:
     bind = op.get_bind()
 
-    if bind.execute(sa.text("SELECT id FROM users WHERE id = 1")).first() is None:
-        raise RuntimeError("User ID 1 does not exist. Migration stopped.")
+    has_existing_links = bind.execute(
+        sa.text("SELECT EXISTS (SELECT 1 FROM links)")
+    ).scalar()
+
+    if has_existing_links:
+        legacy_user_exists = bind.execute(
+            sa.text("SELECT EXISTS (SELECT 1 FROM users WHERE id = 1)")
+        ).scalar()
+
+        if not legacy_user_exists:
+            raise RuntimeError(
+                "Existing links require legacy owner user ID 1. "
+                "Migration stopped to protect link ownership."
+            )
 
     op.drop_index("ix_links_created_by", table_name="links")
 
