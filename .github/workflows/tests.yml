@@ -1,0 +1,49 @@
+name: LinkOps Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: linkops_test
+          POSTGRES_PASSWORD: linkops_test
+          POSTGRES_DB: linkops_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U linkops_test -d linkops_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg2://linkops_test:linkops_test@localhost:5434/linkops_test
+      TEST_DATABASE_URL: postgresql+psycopg2://linkops_test:linkops_test@localhost:5434/linkops_test
+      JWT_SECRET: ci-only-test-secret-do-not-use-in-production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Apply database migrations
+        run: alembic upgrade head
+
+      - name: Run tests
+        run: python -m pytest -v
